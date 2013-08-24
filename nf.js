@@ -54,12 +54,13 @@ process.once('SIGINT',function userkill(){
 program
 .command('start')
 .usage('[Options] [Processes] e.g. web=1,log=2,api')
-.option('-s, --showenvs'             ,'show ENV variables on start',false)
-.option('-x, --proxy     <PORT>'     ,'start a load balancing proxy on PORT')
-.option('-f, --forward   <PORT>'     ,'start a forward proxy on PORT')
-.option('-i, --intercept <HOSTNAME>' ,'set forward proxy to intercept HOSTNAME',null)
-.option('-t, --trim      <N>'        ,'trim logs to N characters',0)
-.option('-w, --wrap'                 ,'wrap logs (negates trim)')
+.option('-s, --showenvs'             , 'show ENV variables on start', false)
+.option('-x, --proxy     <PORT>'     , 'start a load balancing proxy on PORT')
+.option('-f, --forward   <PORT>'     , 'start a forward proxy on PORT')
+.option('-i, --intercept <HOSTNAME>' , 'set forward proxy to intercept HOSTNAME', null)
+.option('-t, --trim      <N>'        , 'trim logs to N characters', 0)
+.option('-w, --wrap'                 , 'wrap logs (negates trim)')
+.option('-d, --root'                 , 'specify an alternate application root. This defaults to the directory containing the Procfile.')
 .description('Start the jobs in the Procfile')
 .action(function(command_left,command_right){
 
@@ -68,6 +69,8 @@ program
     var envs = loadEnvs(program.env);
 
     var proc = loadProc(program.procfile);
+    
+    var cwd = program.root || (program.procfile && fs.realpathSync(program.procfile.replace(/[^\/\\]*$/, ''))) || process.cwd();
 
     if(!proc) return;
 
@@ -98,20 +101,21 @@ program
 
 	if(process.getuid && process.getuid()==0) process.setuid(process.env.SUDO_USER);
 
-    start(proc,reqs,envs,program.port,emitter);
+    start(proc, reqs, envs, program.port, emitter, cwd);
 });
 
 var upstart = require('./lib/upstart')
 
 program
 .command('export')
-.option('-a, --app  <NAME>' ,'export upstart application as NAME','foreman')
-.option('-u, --user <NAME>' ,'export upstart user as NAME','root')
-.option('-o, --out  <DIR>'  ,'export upstart files to DIR','.')
-.option('-g, --gid  <GID>'  ,'set gid of upstart config to GID')
-.option('-l, --log  <DIR>'  ,'specify upstart log directory','/var/log')
-.option('-t, --type <TYPE>' ,'export file to TYPE (default upstart)','upstart')
-.option('-m, --template <DIR>' ,'use template folder')
+.option('-a, --app  <NAME>'    , 'export upstart application as NAME','foreman')
+.option('-u, --user <NAME>'    , 'export upstart user as NAME','root')
+.option('-o, --out  <DIR>'     , 'export upstart files to DIR','.')
+.option('-g, --gid  <GID>'     , 'set gid of upstart config to GID')
+.option('-l, --log  <DIR>'     , 'specify upstart log directory','/var/log')
+.option('-t, --type <TYPE>'    , 'export file to TYPE (default upstart)','upstart')
+.option('-m, --template <DIR>' , 'use template folder')
+.option('-d, --root'           , 'specify an alternate application root. This defaults to the directory containing the Procfile.')
 .description('Export to an upstart job independent of foreman')
 .action(function(command_left,command_right){
 
@@ -121,6 +125,8 @@ program
 
     var procs = loadProc(program.procfile);
 
+    var cwd = program.root || (program.procfile && fs.realpathSync(program.procfile.replace(/[^\/\\]*$/, ''))) || process.cwd();
+
     if(!procs) return;
 
     var req  = getreqs(program.args[0],procs);
@@ -128,7 +134,7 @@ program
     // Variables for Upstart Template
     var config = {
         application : command.app,
-        cwd         : process.cwd(),
+        cwd         : cwd,
         user        : command.user,
         logs        : command.log,
         envs        : envs,
