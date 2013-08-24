@@ -60,7 +60,7 @@ program
 .option('-i, --intercept <HOSTNAME>' , 'set forward proxy to intercept HOSTNAME', null)
 .option('-t, --trim      <N>'        , 'trim logs to N characters', 0)
 .option('-w, --wrap'                 , 'wrap logs (negates trim)')
-.option('-d, --root'                 , 'specify an alternate application root. This defaults to the directory containing the Procfile.')
+.option('-d, --root'                 , 'specify an alternate application root. This defaults to the directory containing the Procfile. It is available as $CWD, if not otherwise set, in the Procfile')
 .description('Start the jobs in the Procfile')
 .action(function(command_left,command_right){
 
@@ -72,11 +72,11 @@ program
     
     var cwd = program.root || (program.procfile && fs.realpathSync(program.procfile.replace(/[^\/\\]*$/, ''))) || process.cwd();
 
-    if(!proc) return;
+    if (!proc) return;
 
-	if(command.showenvs){
-		for(key in envs){
-			display.Alert("env %s=%s",key,envs[key]);
+	if (command.showenvs){
+		for (var key in envs){
+			display.Alert("env %s=%s", key, envs[key]);
 		}
 	}
 
@@ -84,27 +84,28 @@ program
 
     display.padding  = calculatePadding(reqs);
 
-	if(command.wrap){
-		display.wrapline = process.stdout.columns - display.padding - 7
-		display.trimline = 0
-		display.Alert('Wrapping display Output to %d Columns',display.wrapline)
-	}else{
-		display.trimline = command.trim || process.stdout.columns - display.padding - 5
-		if(display.trimline>0){
-			display.Alert('Trimming display Output to %d Columns',display.trimline)
+	if (command.wrap){
+		display.wrapline = process.stdout.columns - display.padding - 7;
+		display.trimline = 0;
+		display.Alert('Wrapping display Output to %d Columns',display.wrapline);
+
+	} else {
+		display.trimline = command.trim || process.stdout.columns - display.padding - 5;
+		if (display.trimline > 0) {
+			display.Alert('Trimming display Output to %d Columns',display.trimline);
 		}
 	}
 
-	if(command.forward) startForward(command.forward,command.intercept,emitter)
+	if (command.forward) startForward(command.forward, command.intercept, emitter);
 
 	startProxies(reqs,proc,command,emitter,program.port);
 
-	if(process.getuid && process.getuid()==0) process.setuid(process.env.SUDO_USER);
+	if( process.getuid && process.getuid() === 0) process.setuid(process.env.SUDO_USER);
 
     start(proc, reqs, envs, program.port, emitter, cwd);
 });
 
-var upstart = require('./lib/upstart')
+var upstart = require('./lib/upstart');
 
 program
 .command('export')
@@ -117,7 +118,8 @@ program
 .option('-m, --template <DIR>' , 'use template folder')
 .option('-d, --root'           , 'specify an alternate application root. This defaults to the directory containing the Procfile.')
 .description('Export to an upstart job independent of foreman')
-.action(function(command_left,command_right){
+.action(function(command_left,command_right) {
+    var key, i;
 
 	command = command_right || command_left;
 
@@ -142,13 +144,14 @@ program
         template    : command.template
     };
 
-    config.envfile = path.resolve(program.env)
+    config.envfile = path.resolve(program.env);
 
-    var writeout
-    if(upstart[command.type]){
-        writeout = upstart[command.type]
-    }else{
-        return display.Error("Unknown Export Format",command.type)
+    var writeout;
+    if (upstart[command.type]) {
+        writeout = upstart[command.type];
+
+    } else {
+        return display.Error("Unknown Export Format",command.type);
     }
 
     // Check for Upstart User
@@ -159,14 +162,14 @@ program
         if(line.match(/^[^:]*/)[0] == config.user){
             user_exists = true;
         }
-    })
+    });
     if(!user_exists) display.Warn(display.fmt("User %s Does Not Exist on System",config.user));
 
     // Remove Old Upstart Files
     // Must Match App Name and Out Directory
     fs.readdirSync(command.out).forEach(function(file){
         var x = file.indexOf(command.app);
-        if(x==0){
+        if (x === 0){
             var p = path.join(command.out,file);
             display.Warn("Unlink : %s".yellow.bold,p);
             fs.unlinkSync(p);
@@ -177,11 +180,11 @@ program
     var baseport_i = 0;
     var baseport_j = 0;
 
-    config.processes=[]
+    config.processes=[];
 
     // This is ugly because of shitty support for array copying
     // Cleanup is definitely required
-    for(key in req){
+    for (key in req){
 
         var c = {};
         var cmd = procs[key];
@@ -191,35 +194,35 @@ program
             continue;
         }
 
-        config.processes.push({process:key})
-        c.process=key;
-        c.command=cmd;
+        config.processes.push({process:key});
+        c.process = key;
+        c.command = cmd;
 
-        for(_ in config){
-            c[_] = config[_];
+        for (i in config){
+            c[i] = config[i];
         }
 
         var n = req[key];
 
         c.numbers = [];
-        for(i=1;i<=n;i++){
+        for (i = 1; i <= n; i++){
 
             var conf = {};
             conf.number = i;
 
-            for(_ in c){
-                conf[_] = c[_];
+            for (i in c){
+                conf[i] = c[i];
             }
 
-            conf.port = conf.envs.PORT = baseport + baseport_i + baseport_j*100;
-
+            conf.port = conf.envs.PORT = baseport + baseport_i + baseport_j * 100;
+            conf.envs.CWD = conf.envs.CWD || cwd;
 
             var envl = [];
-            for(key in envs){
+            for (key in envs){
                 envl.push({
                     key: key,
                     value: envs[key]
-                })
+                });
             }
 
             conf.envs = envl;
@@ -228,13 +231,13 @@ program
             writeout.foreman_app_n(conf,command.out);
 
             baseport_i++;
-            c.numbers.push({number:i})
+            c.numbers.push({number:i});
         }
 
         // Write the APP-Process.conf File
-        writeout.foreman_app(c,command.out);
+        writeout.foreman_app(c, command.out);
 
-        baseport_i=0;
+        baseport_i = 0;
         baseport_j++;
     }
 
@@ -245,10 +248,10 @@ program
 
 program.parse(process.argv);
 
-if(program.args.length==0) {
-	console.log('   _____                           '.cyan)
-	console.log('  |   __|___ ___ ___ _____ ___ ___ '.cyan)
-	console.log('  |   __| . |  _| -_|     |   |   |'.yellow)
-	console.log('  |__|  |___|_| |___|_|_|_|_^_|_|_|'.magenta)
+if (program.args.length === 0) {
+	console.log('   _____                           '.cyan);
+	console.log('  |   __|___ ___ ___ _____ ___ ___ '.cyan);
+	console.log('  |   __| . |  _| -_|     |   |   |'.yellow);
+	console.log('  |__|  |___|_| |___|_|_|_|_^_|_|_|'.magenta);
 	program.help();
 }
