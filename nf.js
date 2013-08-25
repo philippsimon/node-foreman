@@ -24,29 +24,29 @@ var command;
 var emitter = new events.EventEmitter();
 emitter.once('killall',function(){
     display.Done("Killing All Processes");
-})
+});
 emitter.setMaxListeners(50);
 
-var _proc = require('./lib/proc')
-var start = _proc.start
+var _proc = require('./lib/proc');
+var start = _proc.start;
 
-var _procfile = require('./lib/procfile')
-var procs     = _procfile.procs
-var loadProc  = _procfile.loadProc
+var _procfile = require('./lib/procfile');
+var procs     = _procfile.procs;
+var loadProc  = _procfile.loadProc;
 
-var _envs       = require('./lib/envs')
-var loadEnvs    = _envs.loadEnvs
+var _envs       = require('./lib/envs');
+var loadEnvs    = _envs.loadEnvs;
 
-var _requirements     = require('./lib/requirements')
-var getreqs           = _requirements.getreqs
-var calculatePadding  = _requirements.calculatePadding
+var _requirements     = require('./lib/requirements');
+var getreqs           = _requirements.getreqs;
+var calculatePadding  = _requirements.calculatePadding;
 
-var startProxies = require('./lib/proxy').startProxies
-var startForward = require('./lib/forward').startForward
+var startProxies = require('./lib/proxy').startProxies;
+var startForward = require('./lib/forward').startForward;
 
 // Kill All Child Processes on SIGINT
 process.once('SIGINT',function userkill(){
-	console.log()
+	console.log();
     display.Warn('Interrupted by User');
     emitter.emit('killall');
 });
@@ -68,7 +68,7 @@ program
 
     var envs = loadEnvs(program.env);
 
-    var proc = loadProc(program.procfile);
+    var proc = loadProc(program.procfile, envs);
     
     var cwd = program.root || (program.procfile && fs.realpathSync(program.procfile.replace(/[^\/\\]*$/, ''))) || process.cwd();
 
@@ -80,7 +80,7 @@ program
 		}
 	}
 
-    var reqs = getreqs(program.args[0],proc);
+    var reqs = getreqs(program.args[0], proc);
 
     display.padding  = calculatePadding(reqs);
 
@@ -125,13 +125,13 @@ program
 
     var envs = loadEnvs(program.env);
 
-    var procs = loadProc(program.procfile);
+    var procs = loadProc(program.procfile, envs);
 
     var cwd = program.root || (program.procfile && fs.realpathSync(program.procfile.replace(/[^\/\\]*$/, ''))) || process.cwd();
 
-    if(!procs) return;
+    if (!procs) return;
 
-    var req  = getreqs(program.args[0],procs);
+    var req  = getreqs(program.args[0], procs);
 
     // Variables for Upstart Template
     var config = {
@@ -187,16 +187,16 @@ program
     for (key in req){
 
         var c = {};
-        var cmd = procs[key];
+        var proc = procs[key];
 
-        if (!cmd){
+        if (!proc){
             display.Warn("Required Key '%s' Does Not Exist in Procfile Definition",key);
             continue;
         }
 
         config.processes.push({process:key});
         c.process = key;
-        c.command = cmd;
+        c.command = proc.command + " " + proc.args.join(' ');
 
         for (i in config){
             c[i] = config[i];
