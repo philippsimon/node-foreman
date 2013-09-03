@@ -68,9 +68,11 @@ program
 
     var envs = loadEnvs(program.env);
 
-    var proc = loadProc(program.procfile, envs);
-    
     var cwd = program.root || (program.procfile && fs.realpathSync(program.procfile.replace(/[^\/\\]*$/, ''))) || process.cwd();
+
+    program.procfile = program.procfile === 'Procfile' ? path.join(cwd, program.procfile) : program.procfile;
+
+    var proc = loadProc(program.procfile, envs);
 
     if (!proc) return;
 
@@ -125,9 +127,11 @@ program
 
     var envs = loadEnvs(program.env);
 
-    var procs = loadProc(program.procfile, envs);
-
     var cwd = program.root || (program.procfile && fs.realpathSync(program.procfile.replace(/[^\/\\]*$/, ''))) || process.cwd();
+
+    program.procfile = program.procfile === 'Procfile' ? path.join(cwd, program.procfile) : program.procfile;
+
+    var procs = loadProc(program.procfile, envs);
 
     if (!procs) return;
 
